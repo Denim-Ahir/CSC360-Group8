@@ -29,35 +29,50 @@ The application should also allow the user to cancel an individual job without s
 
 ## Current Prototype
 
-The first working prototype has been completed.
+The current version is an initial working prototype of the Composite Progress Bar application.
 
-It currently includes:
+At this stage, the prototype includes:
 
 - JavaFX graphical interface
 - Three simulated jobs
-- Individual progress bars for each job
+- Individual progress bars
 - Individual Cancel buttons
 - Job status display
-- Concurrent background execution
+- Background task execution
 - Composite/overall progress bar
-- Weighted overall progress calculation
-- Cooperative task cancellation
+- Initial progress calculation
 
-## How It Works
+### Current Output
 
-The basic flow of the application is:
+[View current prototype output](./Screenshot%202026-09-17%20153324.png)
+
+> This is an early-stage prototype and is still under development. More features and improvements will be added in the upcoming stages.
+
+## Planned Improvements
+
+- Implement proper individual file/job progress tracking
+- Add Cancel All Jobs
+- Improve individual job cancellation
+- Improve job status handling
+- Add error and exception handling
+- Improve the composite progress calculation
+- Improve the user interface
+- Add testing
+- Separate the project into proper classes and modules
+- Final integration and implementation
+
+## Project Structure
 
 ```text
-Start All Jobs
-       ↓
-Create Background Tasks
-       ↓
-Run Tasks Using ExecutorService
-       ↓
-Each Job Updates Its Progress
-       ↓
-Individual Progress Bars Update
-       ↓
-Overall Progress Is Calculated
-       ↓
-Job Completes / Gets Cancelled
+composite-progress-bar
+│
+├── src
+│   └── main
+│       └── java
+│           └── com
+│               └── csc360
+│                   └── App.java
+│
+├── pom.xml
+├── .gitignore
+└── README.md
