@@ -1,5 +1,8 @@
-package com.csc360;
+package com.csc360.ui;
 
+import com.csc360.model.JobDefinition;
+import com.csc360.model.WorkProgress;
+import com.csc360.service.ProgressCalculator;
 import javafx.application.Application;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -18,10 +21,17 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class App extends Application {
+/** JavaFX user interface for the Composite Progress Bar. */
+public final class CompositeProgressApp extends Application {
 
-    private final ExecutorService executor = Executors.newFixedThreadPool(3);
-    private final List<Job> jobs = new ArrayList<>();
+    private static final List<JobDefinition> JOB_DEFINITIONS = List.of(
+            new JobDefinition("Job 1", 100),
+            new JobDefinition("Job 2", 150),
+            new JobDefinition("Job 3", 200)
+    );
+
+    private final ExecutorService executor = Executors.newFixedThreadPool(JOB_DEFINITIONS.size());
+    private final List<JobRow> jobRows = new ArrayList<>();
 
     private ProgressBar overallProgressBar;
     private Label overallLabel;
@@ -36,25 +46,21 @@ public class App extends Application {
 
         VBox jobsBox = new VBox(18);
         jobsBox.setPadding(new Insets(24));
-
-        createJob("Job 1", 100, jobsBox);
-        createJob("Job 2", 150, jobsBox);
-        createJob("Job 3", 200, jobsBox);
+        JOB_DEFINITIONS.forEach(definition -> createJobRow(definition, jobsBox));
 
         overallProgressBar = new ProgressBar(0);
         overallProgressBar.setPrefWidth(700);
-
         overallLabel = new Label("Overall Progress: 0%");
         VBox overallBox = new VBox(8, new Label("Overall Progress"), overallProgressBar, overallLabel);
 
         startButton = new Button("Start All Jobs");
         startButton.setPrefWidth(170);
-        startButton.setOnAction(e -> startAllJobs());
+        startButton.setOnAction(event -> startAllJobs());
 
         stopAllButton = new Button("Stop All Jobs");
         stopAllButton.setPrefWidth(170);
         stopAllButton.setDisable(true);
-        stopAllButton.setOnAction(e -> stopAllJobs());
+        stopAllButton.setOnAction(event -> stopAllJobs());
 
         HBox controls = new HBox(14, startButton, stopAllButton);
         controls.setAlignment(Pos.CENTER);
@@ -63,16 +69,15 @@ public class App extends Application {
         root.setPadding(new Insets(32));
         root.setAlignment(Pos.TOP_CENTER);
 
-        Scene scene = new Scene(root, 900, 650);
+        stage.setTitle("CSC 360 - Composite Progress Bar");
         stage.setMinWidth(850);
         stage.setMinHeight(600);
-        stage.setTitle("CSC 360 - Composite Progress Bar");
-        stage.setScene(scene);
+        stage.setScene(new Scene(root, 900, 650));
         stage.show();
     }
 
-    private void createJob(String jobName, int totalWork, VBox jobsBox) {
-        Label nameLabel = new Label(jobName);
+    private void createJobRow(JobDefinition definition, VBox jobsBox) {
+        Label nameLabel = new Label(definition.name());
         nameLabel.setStyle("-fx-font-size: 17px; -fx-font-weight: bold;");
         nameLabel.setPrefWidth(70);
 
@@ -88,14 +93,15 @@ public class App extends Application {
         cancelButton.setMinWidth(90);
         cancelButton.setPrefWidth(90);
         cancelButton.setWrapText(false);
-        Job job = new Job(totalWork, progressBar, statusLabel, cancelButton);
-        cancelButton.setOnAction(e -> cancelJob(job));
 
-        HBox jobRow = new HBox(12, nameLabel, progressBar, statusLabel, cancelButton);
-        jobRow.setAlignment(Pos.CENTER_LEFT);
-        jobRow.setMaxWidth(Double.MAX_VALUE);
-        jobsBox.getChildren().add(jobRow);
-        jobs.add(job);
+        JobRow row = new JobRow(definition, progressBar, statusLabel, cancelButton);
+        cancelButton.setOnAction(event -> cancelJob(row));
+
+        HBox jobLayout = new HBox(12, nameLabel, progressBar, statusLabel, cancelButton);
+        jobLayout.setAlignment(Pos.CENTER_LEFT);
+        jobLayout.setMaxWidth(Double.MAX_VALUE);
+        jobsBox.getChildren().add(jobLayout);
+        jobRows.add(row);
     }
 
     private void startAllJobs() {
@@ -105,69 +111,69 @@ public class App extends Application {
 
         overallProgressBar.setProgress(0);
         overallLabel.setText("Overall Progress: 0%");
-        activeJobs = jobs.size();
+        activeJobs = jobRows.size();
         startButton.setDisable(true);
         stopAllButton.setDisable(false);
 
-        for (Job job : jobs) {
-            job.finished = false;
-            job.progressBar.progressProperty().unbind();
-            job.progressBar.setProgress(0);
-            job.statusLabel.setText("Waiting");
-            job.cancelButton.setDisable(false);
-
-            Task<Void> task = createTask(job);
-            job.task = task;
-            job.progressBar.progressProperty().bind(task.progressProperty());
-            task.messageProperty().addListener((obs, oldMessage, newMessage) -> job.statusLabel.setText(newMessage));
-            task.progressProperty().addListener((obs, oldValue, newValue) -> updateOverallProgress());
-            task.setOnSucceeded(e -> finishJob(job, "Completed"));
-            task.setOnCancelled(e -> finishJob(job, "Cancelled"));
-            task.setOnFailed(e -> finishJob(job, "Failed"));
+        for (JobRow row : jobRows) {
+            resetRow(row);
+            Task<Void> task = createTask(row);
+            row.task = task;
+            row.progressBar.progressProperty().bind(task.progressProperty());
+            task.messageProperty().addListener((observable, oldMessage, message) -> row.statusLabel.setText(message));
+            task.progressProperty().addListener((observable, oldProgress, progress) -> updateOverallProgress());
+            task.setOnSucceeded(event -> finishJob(row, "Completed"));
+            task.setOnCancelled(event -> finishJob(row, "Cancelled"));
+            task.setOnFailed(event -> finishJob(row, "Failed"));
             executor.submit(task);
         }
     }
 
-    private Task<Void> createTask(Job job) {
+    private void resetRow(JobRow row) {
+        row.finished = false;
+        row.progressBar.progressProperty().unbind();
+        row.progressBar.setProgress(0);
+        row.statusLabel.setText("Waiting");
+        row.cancelButton.setDisable(false);
+    }
+
+    private Task<Void> createTask(JobRow row) {
         return new Task<>() {
             @Override
-            protected Void call() throws Exception {
+            protected Void call() throws InterruptedException {
                 updateMessage("Running");
 
-                for (int i = 0; i <= job.totalWork; i++) {
+                for (int completed = 0; completed <= row.definition.totalWork(); completed++) {
                     if (isCancelled()) {
                         return null;
                     }
 
                     Thread.sleep(50);
-                    updateProgress(i, job.totalWork);
+                    updateProgress(completed, row.definition.totalWork());
                 }
-
                 return null;
             }
         };
     }
 
-    private void cancelJob(Job job) {
-        if (job.task != null && !job.task.isDone()) {
-            job.task.cancel(true);
+    private void cancelJob(JobRow row) {
+        if (row.task != null && !row.task.isDone()) {
+            row.task.cancel(true);
         }
     }
 
     private void stopAllJobs() {
-        for (Job job : jobs) {
-            cancelJob(job);
-        }
+        jobRows.forEach(this::cancelJob);
     }
 
-    private void finishJob(Job job, String status) {
-        if (job.finished) {
+    private void finishJob(JobRow row, String status) {
+        if (row.finished) {
             return;
         }
 
-        job.finished = true;
-        job.statusLabel.setText(status);
-        job.cancelButton.setDisable(true);
+        row.finished = true;
+        row.statusLabel.setText(status);
+        row.cancelButton.setDisable(true);
         activeJobs--;
         updateOverallProgress();
 
@@ -178,16 +184,13 @@ public class App extends Application {
     }
 
     private void updateOverallProgress() {
-        double completedWork = 0;
-        double totalWork = 0;
+        List<WorkProgress> progressValues = jobRows.stream()
+                .map(row -> new WorkProgress(
+                        row.definition.totalWork(),
+                        row.task == null ? 0 : row.task.getProgress()))
+                .toList();
 
-        for (Job job : jobs) {
-            double progress = job.task == null ? 0 : Math.max(0, job.task.getProgress());
-            completedWork += progress * job.totalWork;
-            totalWork += job.totalWork;
-        }
-
-        double overall = totalWork == 0 ? 0 : completedWork / totalWork;
+        double overall = ProgressCalculator.calculate(progressValues);
         overallProgressBar.setProgress(overall);
         overallLabel.setText("Overall Progress: " + Math.round(overall * 100) + "%");
     }
@@ -197,20 +200,16 @@ public class App extends Application {
         executor.shutdownNow();
     }
 
-    public static void main(String[] args) {
-        launch(args);
-    }
-
-    private static final class Job {
-        private final int totalWork;
+    private static final class JobRow {
+        private final JobDefinition definition;
         private final ProgressBar progressBar;
         private final Label statusLabel;
         private final Button cancelButton;
         private Task<Void> task;
         private boolean finished;
 
-        private Job(int totalWork, ProgressBar progressBar, Label statusLabel, Button cancelButton) {
-            this.totalWork = totalWork;
+        private JobRow(JobDefinition definition, ProgressBar progressBar, Label statusLabel, Button cancelButton) {
+            this.definition = definition;
             this.progressBar = progressBar;
             this.statusLabel = statusLabel;
             this.cancelButton = cancelButton;

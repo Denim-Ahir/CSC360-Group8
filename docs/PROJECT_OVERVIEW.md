@@ -45,7 +45,7 @@ The jobs are simulated. Each unit of work pauses for 50 milliseconds, rather tha
 ```text
 JavaFX Application Thread
         |
-        +-- App.start() builds labels, bars, and buttons
+        +-- CompositeProgressApp.start() builds labels, bars, and buttons
         |
         +-- Start All Jobs creates a Task for each Job
                          |
@@ -59,7 +59,7 @@ JavaFX Application Thread
         task progress/message listeners update the JavaFX interface
 ```
 
-`App` is the current main class. Its private `Job` model stores one job's total work, controls, current task, and completion state. The executor has three worker threads, allowing all three simulated jobs to execute concurrently.
+`Main` is the launcher. `CompositeProgressApp` builds and manages the JavaFX interface; `JobDefinition` describes each job; and `ProgressCalculator` performs the weighted-progress calculation independently from the GUI. The executor has three worker threads, allowing all three simulated jobs to execute concurrently.
 
 ## 6. Weighted Overall Progress
 
@@ -74,8 +74,8 @@ The combined total is 450 work units. Therefore, a job with more work has a larg
 ## 7. Current Limitations
 
 - Jobs use fixed simulated work, not actual files or services.
-- The task configuration is currently hard-coded in `App.start()`.
-- There are no automated unit or UI tests yet.
+- The task configuration is currently hard-coded in `CompositeProgressApp`.
+- The weighted-progress calculator has unit tests; the JavaFX UI flow is still manually tested.
 - Failed tasks display Failed, but no detailed error message is shown to the user.
 
 ## 8. Suggested Future Work
@@ -83,5 +83,5 @@ The combined total is 450 work units. Therefore, a job with more work has a larg
 - Replace simulated jobs with real work units.
 - Allow users to add, remove, or configure jobs.
 - Display a clear error message and retry option for failed jobs.
-- Add automated tests for progress calculation and cancellation handling.
+- Add automated tests for cancellation and UI-state handling.
 - Move job model and user-interface code into separate classes.

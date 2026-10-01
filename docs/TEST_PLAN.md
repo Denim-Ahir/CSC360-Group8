@@ -31,7 +31,7 @@ Expected result: Maven reports `BUILD SUCCESS`.
 
 ## Automated Testing Roadmap
 
-Future automated tests should cover:
+The project currently includes JUnit tests for the weighted-progress calculation. Future automated tests should cover:
 
 - The weighted-progress formula with known inputs.
 - State transitions for completed, cancelled, and failed jobs.
